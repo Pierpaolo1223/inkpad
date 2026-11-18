@@ -104,6 +104,12 @@ function describeError(error: unknown): string {
         return "Una sincronizzazione è già in corso.";
       case "no_repo":
         return "Configura prima il repository Git.";
+      case "vault_missing":
+        return "La cartella non contiene un vault Inkpad.";
+      case "unsupported":
+        return "La scelta della cartella non è supportata su questa piattaforma.";
+      case "unsupported_path":
+        return "Il selettore ha restituito un percorso non gestibile.";
       default:
         return error.message;
     }
@@ -497,6 +503,55 @@ async function refreshNotebooks(): Promise<void> {
   updateEmptyState();
 }
 
+async function switchVault(path: string, create: boolean): Promise<void> {
+  const view = await api.vaultUse(path, create);
+  notebooks = view.notebooks;
+  notebook = null;
+  page = null;
+  pageIndex = 0;
+  dirty = false;
+  ink.setPage(null);
+  pageText.value = "";
+  renderHighlights();
+  vaultPath.textContent = view.path;
+  vaultPath.title = view.path;
+  setSaveState("Salvato");
+  renderNotebookList();
+  updateEmptyState();
+  updatePageChrome();
+  if (notebooks[0]) await openNotebook(notebooks[0].id);
+}
+
+async function chooseVault(): Promise<void> {
+  let selected: string | null = null;
+  try {
+    await flush();
+    selected = await api.vaultPick();
+  } catch (error) {
+    toast(describeError(error));
+    return;
+  }
+  if (!selected) return;
+
+  try {
+    await switchVault(selected, false);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "vault_missing") {
+      const create = window.confirm(
+        `La cartella:\n${selected}\n\nnon contiene un vault Inkpad. Crearne uno nuovo qui?`,
+      );
+      if (!create) return;
+      try {
+        await switchVault(selected, true);
+      } catch (inner) {
+        toast(describeError(inner));
+      }
+      return;
+    }
+    toast(describeError(error));
+  }
+}
+
 async function openNotebook(id: string): Promise<void> {
   await flush();
   notebook = await api.notebookLoad(id);
@@ -831,6 +886,7 @@ document.addEventListener("keydown", (event) => {
 $("sidebar-open").addEventListener("click", () => $("sidebar").classList.add("open"));
 $("sidebar-close").addEventListener("click", () => $("sidebar").classList.remove("open"));
 
+$("open-vault").addEventListener("click", () => void chooseVault());
 $("open-git").addEventListener("click", () => void openGitDialog());
 $("git-init").addEventListener("click", () => {
   void (async () => {

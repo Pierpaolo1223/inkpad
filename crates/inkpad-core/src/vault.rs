@@ -42,6 +42,37 @@ impl Vault {
         Ok(vault)
     }
 
+    /// Apre solo un vault già esistente. Non crea la cartella né il manifesto:
+    /// serve al selettore, che deve poter distinguere una cartella qualsiasi da
+    /// un vault Inkpad prima di cambiare la sessione.
+    pub fn open_existing(root: impl Into<PathBuf>) -> Result<Self> {
+        let root = root.into();
+        if !root.join(MANIFEST_FILE).exists() {
+            return Err(Error::VaultMissing);
+        }
+        Self::open(root)
+    }
+
+    /// Crea un vault nuovo solo in una cartella vuota. Su una cartella con un
+    /// manifesto valido si comporta come `open_existing`; su una cartella con
+    /// altri file rifiuta, per non spargere `notebooks/` in una directory
+    /// scelta per errore.
+    pub fn create_in_empty(root: impl Into<PathBuf>) -> Result<Self> {
+        let root = root.into();
+        if !root.is_dir() {
+            return Err(Error::Invalid("la cartella del vault non esiste".into()));
+        }
+        ensure_root_dir(&root)?;
+        if root.join(MANIFEST_FILE).exists() {
+            return Self::open(root);
+        }
+        let mut entries = std::fs::read_dir(&root)?;
+        if entries.next().is_some() {
+            return Err(Error::Rejected("la cartella non è vuota".into()));
+        }
+        Self::open(root)
+    }
+
     pub fn root(&self) -> &Path {
         &self.root
     }
@@ -299,6 +330,38 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let vault = Vault::open(dir.path().join("vault")).unwrap();
         (dir, vault)
+    }
+
+    #[test]
+    fn apre_solo_un_vault_esistente() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("vault");
+        std::fs::create_dir_all(&root).unwrap();
+        assert!(matches!(
+            Vault::open_existing(&root),
+            Err(Error::VaultMissing)
+        ));
+
+        Vault::open(&root).unwrap();
+        let reopened = Vault::open_existing(&root).unwrap();
+        assert!(reopened.list_notebooks().unwrap().is_empty());
+    }
+
+    #[test]
+    fn crea_un_vault_solo_in_una_cartella_vuota() {
+        let dir = tempfile::tempdir().unwrap();
+        let occupata = dir.path().join("occupata");
+        std::fs::create_dir_all(&occupata).unwrap();
+        std::fs::write(occupata.join("altro.txt"), b"x").unwrap();
+        assert!(matches!(
+            Vault::create_in_empty(&occupata),
+            Err(Error::Rejected(_))
+        ));
+
+        let vuota = dir.path().join("vuota");
+        std::fs::create_dir_all(&vuota).unwrap();
+        Vault::create_in_empty(&vuota).unwrap();
+        assert!(vuota.join(MANIFEST_FILE).is_file());
     }
 
     #[test]

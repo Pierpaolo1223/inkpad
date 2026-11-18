@@ -66,6 +66,9 @@ const MOCK_SOURCE = `
       "pg-2": { schema: 1, id: "pg-2", paper: "ruled", text: "", strokes: [], updated_at: 1 },
     },
     saves: [],
+    vaultPath: "/mock/vault",
+    nextPick: null,
+    deleted: false,
   });
   // In sessionStorage: sopravvive a un Page.reload, così si può verificare la
   // memoria di strumento e colori come dopo una riapertura.
@@ -87,7 +90,16 @@ const MOCK_SOURCE = `
     invoke: async (cmd, args = {}) => {
       switch (cmd) {
         case "vault_open":
-          return { path: "/mock/vault", notebooks: state.deleted ? [] : [{ id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.length, updated_at: 1 }] };
+          return { path: state.vaultPath, notebooks: state.deleted ? [] : [{ id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.length, updated_at: 1 }] };
+        case "vault_use":
+          if (!args.create && args.path === "/mock/vault-nuovo") {
+            throw { code: "vault_missing", message: "cartella senza vault" };
+          }
+          state.vaultPath = args.path;
+          persist();
+          return { path: state.vaultPath, notebooks: state.deleted ? [] : [{ id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.length, updated_at: 1 }] };
+        case "vault_pick":
+          return state.nextPick || "/mock/vault-2";
         case "notebook_load":
           return { schema: 1, id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.slice(), updated_at: 1, ui: state.notebook.ui };
         case "notebook_set_ui":
@@ -515,6 +527,35 @@ async function main() {
       "le preferenze non restano fuori dal quaderno",
       await session.eval("localStorage.getItem('inkpad:tool:nb-1')"),
       null,
+    );
+
+    // --- apertura di un altro vault -------------------------------------
+    await click("#open-vault");
+    await waitFor(
+      async () =>
+        (await session.eval("document.getElementById('vault-path').textContent")) ===
+        "/mock/vault-2",
+      { label: "vault scelto" },
+    );
+    check(
+      "apertura vault aggiorna il percorso",
+      await session.eval("document.getElementById('vault-path').textContent"),
+      "/mock/vault-2",
+    );
+    check("dopo il cambio si apre il primo quaderno", await indicator(), "1 / 2");
+
+    await session.eval("window.__inkpadState.nextPick = '/mock/vault-nuovo'");
+    await click("#open-vault");
+    await waitFor(
+      async () =>
+        (await session.eval("document.getElementById('vault-path').textContent")) ===
+        "/mock/vault-nuovo",
+      { label: "nuovo vault confermato" },
+    );
+    check(
+      "la conferma crea il vault scelto",
+      await session.eval("document.getElementById('vault-path').textContent"),
+      "/mock/vault-nuovo",
     );
 
     await session.send("Page.reload");

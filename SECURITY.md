@@ -78,6 +78,7 @@ scegliere i casi dei test, non come certificazione).
 | Token in memoria non bloccato (`mlock`) | dump di memoria del processo | fuori scope per un'app locale; `Zeroizing` copre il caso normale |
 | Nessun certificate pinning | CA compromessa o proxy aziendale legge il traffico | si usa lo store del sistema, scelta consapevole per non rompere proxy legittimi |
 | `style-src 'unsafe-inline'` | necessario per gli attributi `style` dei campioni colore | non consente script; può essere eliminato spostando i colori in classi CSS |
+| Vault aperto da una cartella scelta | un `.git/config` non fidato può puntare il remote o un proxy altrove | il selettore valida manifest, radice e schema del percorso, non la configurazione Git; non sincronizzare vault di provenienza sconosciuta |
 
 ## 6. Fuori scope
 
