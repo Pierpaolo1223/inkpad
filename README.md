@@ -17,7 +17,8 @@ via HTTPS. Stesso codice Rust per desktop, iOS e Android (Tauri v2).
   l'ultimo strumento e i due colori, salvati nel suo `notebook.json`: seguono
   il quaderno e i suoi commit, quindi li ritrovi anche su un altro dispositivo.
 * **Quaderno**: quaderni → pagine ordinate, carta  rigata/quadrettata/puntinata/bianca, note dattiloscritte opzionali scritte
-  sulle stesse righe dell'inchiostro.
+  sulle stesse righe dell'inchiostro; un quaderno si elimina dalla sidebar
+  insieme alle sue pagine.
 * **Git, esplicito**: commit, pull (fast-forward o merge), push. Solo HTTPS,
   token tenuto in memoria, nessuna sincronizzazione automatica in background.
 
@@ -119,11 +120,11 @@ rifiutati. Dettagli in [SECURITY.md](SECURITY.md).
 Eseguiti in questo repository:
 
 ```bash
-cargo test -p inkpad-core          # 32 test: modello, vault, Git
+cargo test -p inkpad-core          # 34 test: modello, vault, Git
 cargo clippy -p inkpad-core -p inkpad --all-targets
 npm run build                      # tsc --noEmit + vite build
 npm run test:unit                  # 8 test: parole, evidenziazioni, offset
-npm run test:ui                    # 34 controlli in Chrome headless con IPC
+npm run test:ui                    # 36 controlli in Chrome headless con IPC
                                    # simulato: autosave, cambio pagina,
                                    # strumenti, evidenziatore, preferenze
 ```

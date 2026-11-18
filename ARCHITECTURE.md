@@ -159,20 +159,20 @@ Sintesi delle scelte non ovvie:
 
 ## 8. Reparto QA
 
-Test automatici (`cargo test -p inkpad-core`, 27 test):
+Test automatici (`cargo test -p inkpad-core`, 34 test):
 
 | Area | Cosa dimostra |
 |---|---|
 | modello | roundtrip JSON bit-a-bit, campi sconosciuti rifiutati, limiti di pressione/coordinate/testo, id con traversal rifiutati |
-| vault | ciclo quaderno→pagina→save→delete, pagina di un altro quaderno rifiutata, cartella `pages` symlink rifiutata, manifesto corrotto non riscritto |
+| vault | ciclo quaderno→pagina→save→delete, eliminazione del quaderno e delle sue pagine, quaderno orfano rimosso dal manifesto, pagina di un altro quaderno rifiutata, cartella `pages` symlink rifiutata, manifesto corrotto non riscritto |
 | path | `..`, radice assoluta, `.git`, symlink antenato rifiutati; scrittura atomica senza file temporanei residui |
 | Git | init/commit, nessuna modifica → errore, primo pull, fast-forward con rimozione dei file obsoleti, push su bare locale, pull bloccato da modifiche non committate, pull bloccato da `credential.helper`, symlink nell'albero rifiutato, traversal rifiutato, merge pulito a due padri, conflitto senza scritture |
 | evidenziazioni | roundtrip, intervalli vuoti/fuori dal testo, colore non esadecimale, limite, offset UTF-16, pagine senza il campo |
 
 Frontend: `npm run test:unit` (8 test sulle funzioni pure) e `npm run test:ui`,
 che pilota la vera interfaccia in Chrome headless con l'IPC Tauri sostituito da
-un vault in memoria: autosalvataggio, cambio pagina, aggiunta/eliminazione,
-evidenziatore e annulla/ripeti.
+un vault in memoria: autosalvataggio, cambio pagina, aggiunta/eliminazione di
+pagine e quaderni, evidenziatore e annulla/ripeti.
 | URL | solo HTTPS, credenziali nell'URL rifiutate, schemi/local path rifiutati |
 
 Non coperto dai test automatici, da provare su dispositivo (matrice manuale):

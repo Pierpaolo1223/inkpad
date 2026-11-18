@@ -119,6 +119,7 @@ export const api = {
   vaultOpen: () => call<VaultView>("vault_open"),
   notebookCreate: (title: string) => call<Notebook>("notebook_create", { title }),
   notebookLoad: (notebookId: string) => call<Notebook>("notebook_load", { notebookId }),
+  notebookDelete: (notebookId: string) => call<void>("notebook_delete", { notebookId }),
   notebookSetUi: (notebookId: string, tool: UiTool, penColor: string, markerColor: string) =>
     call<Notebook>("notebook_set_ui", { notebookId, tool, penColor, markerColor }),
   pageCreate: (notebookId: string, paper: Paper) =>

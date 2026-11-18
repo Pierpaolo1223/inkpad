@@ -91,6 +91,12 @@ fn notebook_load(session: State<'_, Session>, notebook_id: String) -> Result<Not
     Ok(Vault::open(session.root.clone())?.load_notebook(&notebook_id)?)
 }
 
+#[tauri::command]
+fn notebook_delete(session: State<'_, Session>, notebook_id: String) -> Result<(), AppError> {
+    Vault::open(session.root.clone())?.delete_notebook(&notebook_id)?;
+    Ok(())
+}
+
 /// Strumento e colori sono preferenze del quaderno: viaggiano con il suo file
 /// (e quindi con i commit Git) invece di restare sulla singola macchina.
 #[tauri::command]
@@ -237,6 +243,7 @@ pub fn run() {
             vault_open,
             notebook_create,
             notebook_load,
+            notebook_delete,
             notebook_set_ui,
             page_create,
             page_load,
