@@ -20,6 +20,8 @@ pub enum Error {
     Git(#[from] git2::Error),
     #[error("il vault non è ancora inizializzato")]
     NotInitialized,
+    #[error("la cartella non contiene un vault Inkpad")]
+    VaultMissing,
     #[error("repository Git non inizializzato")]
     NoRepo,
     #[error("conflitto di merge nei file: {0}")]
@@ -46,6 +48,7 @@ impl Error {
             Error::Json(_) => "invalid_json",
             Error::Git(_) => "git",
             Error::NotInitialized => "not_initialized",
+            Error::VaultMissing => "vault_missing",
             Error::NoRepo => "no_repo",
             Error::Conflict(_) => "conflict",
             Error::AuthRequired => "auth_required",

@@ -4,7 +4,7 @@ Appunti scritti a penna su pagine di quaderno. Funziona senza rete, salva sul
 dispositivo e, quando lo chiedi, sincronizza la cartella con un repository Git
 via HTTPS. Stesso codice Rust per desktop, iOS e Android (Tauri v2).
 
-* **Leggerissima**: bundle web ~23 KB di JS e ~9 KB di CSS (misurato, vedi
+* **Leggerissima**: bundle web ~25 KB di JS e ~9 KB di CSS (misurato, vedi
   [Verifiche](#verifiche)); nessun framework UI, nessun database, nessun
   servizio esterno.
 * **Penna**: pressione, eventi pointer coalescenti, rifiuto del palmo, gomma a
@@ -21,6 +21,10 @@ via HTTPS. Stesso codice Rust per desktop, iOS e Android (Tauri v2).
   insieme alle sue pagine.
 * **Git, esplicito**: commit, pull (fast-forward o merge), push. Solo HTTPS,
   token tenuto in memoria, nessuna sincronizzazione automatica in background.
+* **Apri vault**: il pulsante nella barra laterale sceglie una cartella con il
+  selettore nativo. Un vault esistente viene validato; una cartella vuota può
+  diventare un vault solo dopo conferma. Il percorso scelto viene ricordato
+  nella configurazione dell'app.
 
 ## Struttura
 
@@ -46,8 +50,13 @@ npm run tauri dev      # sviluppo
 npm run tauri build    # pacchetto desktop
 ```
 
-I dati stanno nella cartella dati dell'app (`app_data_dir()/vault`), mostrata in
-fondo alla barra laterale.
+Il vault predefinito sta nella cartella dati dell'app (`app_data_dir()/vault`),
+mostrata in fondo alla barra laterale. Con **Apri vault…** si può scegliere una
+cartella fuori dai dati dell'app: il percorso viene salvato nella
+configurazione del dispositivo e riaperto al riavvio. Su desktop questo permette
+di tenere le note in Documenti o su un disco scelto e di ritrovarle anche dopo
+una reinstallazione; la cartella deve contenere un `inkpad.json` valido oppure
+essere vuota, e in quel caso la creazione richiede una conferma esplicita.
 
 ## iOS e Android
 
@@ -120,22 +129,23 @@ rifiutati. Dettagli in [SECURITY.md](SECURITY.md).
 Eseguiti in questo repository:
 
 ```bash
-cargo test -p inkpad-core          # 34 test: modello, vault, Git
+cargo test -p inkpad-core          # 36 test: modello, vault, Git
 cargo clippy -p inkpad-core -p inkpad --all-targets
 npm run build                      # tsc --noEmit + vite build
 npm run test:unit                  # 8 test: parole, evidenziazioni, offset
-npm run test:ui                    # 36 controlli in Chrome headless con IPC
+npm run test:ui                    # 39 controlli in Chrome headless con IPC
                                    # simulato: autosave, cambio pagina,
-                                   # strumenti, evidenziatore, preferenze
+                                   # strumenti, evidenziatore, preferenze,
+                                   # apertura vault e conferma creazione
 ```
 
 Misure reali del bundle di produzione:
 
 | file | dimensione | gzip |
 |---|---|---|
-| `dist/assets/index-*.js` | 23.52 kB | 8.34 kB |
-| `dist/assets/index-*.css` | 9.01 kB | 2.69 kB |
-| `dist/index.html` | 8.04 kB | 2.36 kB |
+| `dist/assets/index-*.js` | 25.12 kB | 8.81 kB |
+| `dist/assets/index-*.css` | 9.35 kB | 2.75 kB |
+| `dist/index.html` | 8.19 kB | 2.40 kB |
 
 `cargo clippy -p inkpad` e `npm run tauri dev` girano su questa macchina (le
 dipendenze di sistema `libsoup-3.0` e `webkit2gtk-4.1` sono installate).
@@ -156,6 +166,10 @@ dispositivo con penna, misure di latenza penna→pixel. Vedi
   scelta già fatta per `highlights`). Si risolve aggiornando l'app.
 * Nessun rinomina quaderno / riordino pagine nell'interfaccia (i file sono
   modificabili a mano e il prossimo commit li porta con sé).
+* Su Android e iOS il plugin dialog di Tauri non offre un selettore di cartelle:
+  il pulsante **Apri vault…** restituisce un errore e il vault resta nella
+  cartella dati dell'app. Per sopravvivere alla disinstallazione su mobile serve
+  un'implementazione SAF dedicata, non ancora presente.
 
 ## Licenza
 

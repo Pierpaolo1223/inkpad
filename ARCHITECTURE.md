@@ -15,7 +15,7 @@ Data: 2026-11-17.
 | sincronizzabile con Git | il vault *è* un repository; una pagina = un file; commit/pull/push espliciti |
 | pagine "a mo' di quaderno" | quaderni e pagine ordinate, carta a righe/quadretti/punti, coordinate di pagina fisse |
 | Rust + Tauri v2 | un core Rust senza dipendenze Tauri, riusato su desktop, iOS e Android |
-| iOS e Android | nessuna API desktop-only, percorsi in `app_data_dir`, OpenSSL inclusa nel binario mobile |
+| iOS e Android | nessuna API desktop-only, vault predefinito in `app_data_dir`, OpenSSL inclusa nel binario mobile |
 
 ## 2. Ripartizione del codice
 
@@ -35,6 +35,20 @@ canvas + UI  ──invoke──────▶  comandi IPC        ────�
 
 **Perché**: la parte che può corrompere dati è la più piccola possibile e ha
 test senza interfaccia grafica; il guscio mobile resta sostituibile.
+
+### Apertura del vault
+
+La sessione parte da `app_data_dir()/vault`. Il comando `vault_pick` apre il
+selettore nativo (desktop) e `vault_use` cambia la radice solo dopo aver
+validato il percorso: deve essere una directory assoluta, reale e non symlink;
+deve contenere un `inkpad.json` valido, oppure essere vuota e richiedere una
+conferma esplicita. La scelta viene scritta in `settings.json` nella
+configurazione dell'app e riaperta al riavvio. Al cambio di vault il token Git
+in memoria viene azzerato, perché apparteneva a un altro repository.
+
+Su Android e iOS il plugin dialog di Tauri non offre un selettore di cartelle:
+il comando restituisce `unsupported` e resta il vault in `app_data_dir`. Un
+supporto SAF richiede un plugin nativo dedicato.
 
 ## 3. Modello dati
 
@@ -154,25 +168,30 @@ Sintesi delle scelte non ovvie:
   restituito al frontend; vive in `Zeroizing<String>` dietro un `Mutex`.
 * Un solo pull/push alla volta (`try_lock`): una sincronizzazione in corso non
   si sovrappone a un save.
+* Un vault scelto dall'utente è input non fidato: la radice non può essere un
+  symlink, il manifesto viene validato e la creazione è consentita solo in una
+  cartella vuota. La configurazione Git di un vault importato resta fuori da
+  questa validazione: non sincronizzare un vault di provenienza sconosciuta.
 * CSP senza `unsafe-eval`, nessuna risorsa remota, `withGlobalTauri: false`,
   capability ridotta a `core:default`.
 
 ## 8. Reparto QA
 
-Test automatici (`cargo test -p inkpad-core`, 34 test):
+Test automatici (`cargo test -p inkpad-core`, 36 test):
 
 | Area | Cosa dimostra |
 |---|---|
 | modello | roundtrip JSON bit-a-bit, campi sconosciuti rifiutati, limiti di pressione/coordinate/testo, id con traversal rifiutati |
-| vault | ciclo quaderno→pagina→save→delete, eliminazione del quaderno e delle sue pagine, quaderno orfano rimosso dal manifesto, pagina di un altro quaderno rifiutata, cartella `pages` symlink rifiutata, manifesto corrotto non riscritto |
+| vault | ciclo quaderno→pagina→save→delete, eliminazione del quaderno e delle sue pagine, quaderno orfano rimosso dal manifesto, pagina di un altro quaderno rifiutata, cartella `pages` symlink rifiutata, manifesto corrotto non riscritto, apertura solo di vault esistenti e creazione solo in cartella vuota |
 | path | `..`, radice assoluta, `.git`, symlink antenato rifiutati; scrittura atomica senza file temporanei residui |
 | Git | init/commit, nessuna modifica → errore, primo pull, fast-forward con rimozione dei file obsoleti, push su bare locale, pull bloccato da modifiche non committate, pull bloccato da `credential.helper`, symlink nell'albero rifiutato, traversal rifiutato, merge pulito a due padri, conflitto senza scritture |
 | evidenziazioni | roundtrip, intervalli vuoti/fuori dal testo, colore non esadecimale, limite, offset UTF-16, pagine senza il campo |
 
-Frontend: `npm run test:unit` (8 test sulle funzioni pure) e `npm run test:ui`,
-che pilota la vera interfaccia in Chrome headless con l'IPC Tauri sostituito da
-un vault in memoria: autosalvataggio, cambio pagina, aggiunta/eliminazione di
-pagine e quaderni, evidenziatore e annulla/ripeti.
+Frontend: `npm run test:unit` (8 test sulle funzioni pure) e `npm run test:ui`
+(39 controlli), che pilota la vera interfaccia in Chrome headless con l'IPC
+Tauri sostituito da un vault in memoria: autosalvataggio, cambio pagina,
+aggiunta/eliminazione di pagine e quaderni, evidenziatore, annulla/ripeti,
+apertura di un altro vault e conferma di creazione.
 | URL | solo HTTPS, credenziali nell'URL rifiutate, schemi/local path rifiutati |
 
 Non coperto dai test automatici, da provare su dispositivo (matrice manuale):

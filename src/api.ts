@@ -117,6 +117,9 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 
 export const api = {
   vaultOpen: () => call<VaultView>("vault_open"),
+  vaultPick: () => call<string | null>("vault_pick"),
+  vaultUse: (path: string, create: boolean) =>
+    call<VaultView>("vault_use", { path, create }),
   notebookCreate: (title: string) => call<Notebook>("notebook_create", { title }),
   notebookLoad: (notebookId: string) => call<Notebook>("notebook_load", { notebookId }),
   notebookDelete: (notebookId: string) => call<void>("notebook_delete", { notebookId }),
