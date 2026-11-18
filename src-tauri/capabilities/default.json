@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Solo le API core della finestra: nessun plugin fs, shell, http o updater. Tutto l'I/O passa dai comandi Rust del crate.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

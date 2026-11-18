@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>Inkpad</title>
+    <style>
+      /* In sviluppo Vite inietta il CSS dal JavaScript: senza queste due
+         righe, per un istante si vedrebbe l'HTML senza stile. Lo sfondo è lo
+         stesso `--bg` di style.css; `app-ready` lo aggiunge main.ts quando il
+         foglio di stile è già applicato. */
+      html {
+        background: #f2efe7;
+      }
+      html:not(.app-ready) #app {
+        visibility: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar" class="sidebar" aria-label="Quaderni">
+        <div class="sidebar-head">
+          <h1>Inkpad</h1>
+          <button id="sidebar-close" class="icon-btn mobile-only" aria-label="Chiudi elenco quaderni">×</button>
+        </div>
+        <ul id="notebook-list" class="notebook-list"></ul>
+        <form id="new-notebook-form" class="new-notebook">
+          <label class="visually-hidden" for="new-notebook-title">Titolo del nuovo quaderno</label>
+          <input id="new-notebook-title" type="text" maxlength="80" placeholder="Nuovo quaderno" autocomplete="off" />
+          <button type="submit" class="ghost-btn">Crea</button>
+        </form>
+        <div class="sidebar-foot">
+          <button id="open-git" class="ghost-btn full">Sincronizza con Git</button>
+          <p id="vault-path" class="vault-path" title="Cartella dei dati"></p>
+        </div>
+      </aside>
+
+      <main id="workspace" class="workspace">
+        <header class="topbar">
+          <button id="sidebar-open" class="icon-btn mobile-only" aria-label="Apri elenco quaderni">☰</button>
+          <div class="title-block">
+            <h2 id="notebook-title">Nessun quaderno</h2>
+            <p id="save-state" class="save-state" role="status" aria-live="polite"></p>
+          </div>
+          <div class="topbar-actions">
+            <button id="undo" class="icon-btn" aria-label="Annulla" title="Annulla (Ctrl+Z)">↶</button>
+            <button id="redo" class="icon-btn" aria-label="Ripeti" title="Ripeti (Ctrl+Shift+Z)">↷</button>
+          </div>
+        </header>
+
+        <section class="toolbar" aria-label="Strumenti di disegno">
+          <div class="tool-group" role="group" aria-label="Strumento">
+            <button id="tool-pen" class="tool-btn" aria-pressed="false" title="Penna">Penna</button>
+            <button id="tool-marker" class="tool-btn" aria-pressed="false" title="Evidenzia la parola sotto il puntatore">Evid.</button>
+            <button id="tool-eraser" class="tool-btn" aria-pressed="false" title="Gomma">Gomma</button>
+            <button
+              id="tool-text"
+              class="tool-btn"
+              aria-pressed="true"
+              data-active
+              title="Scrivi con la tastiera sulle righe (Esc per uscire)"
+            >
+              Testo
+            </button>
+          </div>
+          <div class="tool-group" role="group" aria-label="Colore">
+            <button class="swatch" data-color="#1f2933" style="--swatch: #1f2933" aria-label="Inchiostro nero" data-active></button>
+            <button class="swatch" data-color="#1d4ed8" style="--swatch: #1d4ed8" aria-label="Inchiostro blu"></button>
+            <button class="swatch" data-color="#b91c1c" style="--swatch: #b91c1c" aria-label="Inchiostro rosso"></button>
+            <button class="swatch" data-color="#15803d" style="--swatch: #15803d" aria-label="Inchiostro verde"></button>
+            <button
+              class="swatch"
+              data-color="#f2c200"
+              style="--swatch: #f2c200"
+              aria-label="Giallo evidenziatore"
+              title="Giallo evidenziatore"
+            ></button>
+          </div>
+          <div class="tool-group" role="group" aria-label="Spessore">
+            <button class="width-btn" data-width="1.6" aria-label="Tratto fine"><span style="height:1.6px"></span></button>
+            <button class="width-btn" data-width="3" aria-label="Tratto medio"><span style="height:3px"></span></button>
+            <button class="width-btn" data-width="6" aria-label="Tratto largo"><span style="height:6px"></span></button>
+          </div>
+          <div class="tool-group">
+            <label class="paper-label" for="paper-select">Carta</label>
+            <select id="paper-select">
+              <option value="ruled">Righe</option>
+              <option value="squared">Quadretti</option>
+              <option value="dotted">Punti</option>
+              <option value="plain">Bianca</option>
+            </select>
+          </div>
+        </section>
+
+        <section id="stage" class="stage" aria-label="Pagina di appunti">
+          <div id="page-scroll" class="page-scroll">
+            <div id="page-frame" class="page-frame paper-ruled">
+              <canvas id="ink" aria-label="Foglio di disegno"></canvas>
+              <div id="page-highlight" class="page-highlight" aria-hidden="true"></div>
+              <div id="page-measure" class="page-measure" aria-hidden="true"></div>
+              <label class="visually-hidden" for="page-text">Testo della pagina</label>
+              <textarea
+                id="page-text"
+                class="page-text"
+                placeholder="Scrivi sulle righe…"
+                spellcheck="true"
+              ></textarea>
+            </div>
+          </div>
+          <div id="empty-state" class="empty-state" hidden>
+            <p id="empty-message">Crea un quaderno per iniziare.</p>
+            <button id="empty-action" class="primary-btn" hidden>Crea quaderno</button>
+          </div>
+        </section>
+
+        <footer class="pagebar">
+          <button id="prev-page" class="ghost-btn" aria-label="Pagina precedente">←</button>
+          <span id="page-indicator" class="page-indicator">— / —</span>
+          <button id="next-page" class="ghost-btn" aria-label="Pagina successiva">→</button>
+          <span class="spacer"></span>
+          <button id="add-page" class="ghost-btn">Nuova pagina</button>
+          <button id="delete-page" class="ghost-btn danger">Elimina</button>
+        </footer>
+      </main>
+    </div>
+
+    <dialog id="git-dialog" class="git-dialog" aria-labelledby="git-title">
+      <form method="dialog" class="git-head">
+        <h2 id="git-title">Git</h2>
+        <button class="icon-btn" aria-label="Chiudi">×</button>
+      </form>
+      <p id="git-status" class="git-status">Stato sconosciuto.</p>
+
+      <fieldset id="git-init-fields" class="git-fields">
+        <legend>Inizializza il repository</legend>
+        <label>Nome autore <input id="git-name" type="text" maxlength="64" autocomplete="name" /></label>
+        <label>Email autore <input id="git-email" type="email" maxlength="254" autocomplete="email" /></label>
+        <button id="git-init" class="primary-btn" type="button">Inizializza</button>
+      </fieldset>
+
+      <div id="git-sync-fields" class="git-fields" hidden>
+        <label>Remote HTTPS <input id="git-remote" type="url" inputmode="url" placeholder="https://github.com/utente/quaderni.git" /></label>
+        <button id="git-set-remote" class="ghost-btn" type="button">Imposta remote</button>
+
+        <label>Token di accesso
+          <input id="git-token" type="password" autocomplete="off" spellcheck="false" placeholder="solo in memoria" />
+        </label>
+        <p class="hint">Il token resta in memoria e non viene scritto su disco. Per GitHub usa un fine-grained token con permesso Contents.</p>
+
+        <label>Messaggio di commit <input id="git-message" type="text" maxlength="2000" value="appunti" /></label>
+        <div class="git-actions">
+          <button id="git-commit" class="ghost-btn" type="button">Commit</button>
+          <button id="git-pull" class="ghost-btn" type="button">Pull</button>
+          <button id="git-push" class="primary-btn" type="button">Push</button>
+        </div>
+      </div>
+
+      <pre id="git-log" class="git-log" aria-live="polite"></pre>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

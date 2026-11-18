@@ -1,0 +1,28 @@
+[package]
+name = "inkpad-core"
+description = "Modello, storage e sincronizzazione Git di Inkpad, senza dipendenze da Tauri"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+url = "2"
+# libgit2 compilata dallo stesso sorgente su ogni target: nessuna dipendenza
+# dal libgit2 di sistema, che su iOS/Android non esiste.
+git2 = { version = "0.21", default-features = false, features = ["vendored-libgit2"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["https"]
+# HTTPS via OpenSSL di sistema (desktop Linux/macOS/Windows).
+https = ["git2/https"]
+# Per iOS/Android e per build riproducibili: OpenSSL compilata insieme.
+# Richiede cmake + perl nel toolchain di cross-compilazione.
+vendored-openssl = ["git2/vendored-openssl"]
