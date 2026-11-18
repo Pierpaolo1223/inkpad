@@ -472,7 +472,18 @@ function renderNotebookList(): void {
     button.addEventListener("click", () => {
       void openNotebook(summary.id);
     });
-    item.append(button);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "notebook-delete";
+    remove.title = "Elimina quaderno";
+    remove.setAttribute("aria-label", `Elimina il quaderno «${summary.title}»`);
+    remove.textContent = "×";
+    remove.addEventListener("click", () => {
+      void deleteNotebook(summary);
+    });
+
+    item.append(button, remove);
     notebookList.append(item);
   }
 }
@@ -569,6 +580,40 @@ async function deleteCurrentPage(): Promise<void> {
     updatePageChrome();
   }
   void refreshNotebooks();
+}
+
+/**
+ * Elimina il quaderno intero (cartella, pagine e voce nel manifesto). Se era
+ * quello aperto, si passa al primo rimasto; se non ne restano, si mostra lo
+ * stato vuoto.
+ */
+async function deleteNotebook(summary: NotebookSummary): Promise<void> {
+  const message = `Eliminare il quaderno «${summary.title}» e tutte le sue pagine? L'operazione sarà inclusa nel prossimo commit.`;
+  if (!window.confirm(message)) return;
+  try {
+    await flush();
+    await api.notebookDelete(summary.id);
+    if (notebook?.id === summary.id) {
+      notebook = null;
+      page = null;
+      dirty = false;
+      ink.setPage(null);
+      pageText.value = "";
+      setSaveState("");
+    }
+    await refreshNotebooks();
+    if (!notebook) {
+      const first = notebooks[0];
+      if (first) {
+        await openNotebook(first.id);
+      } else {
+        updatePageChrome();
+      }
+    }
+    toast(`Quaderno «${summary.title}» eliminato.`);
+  } catch (error) {
+    toast(describeError(error));
+  }
 }
 
 // --- Git ----------------------------------------------------------------

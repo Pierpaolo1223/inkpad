@@ -184,6 +184,35 @@ impl Vault {
         Ok(())
     }
 
+    /// Elimina un quaderno, le sue pagine e la voce nel manifesto.
+    ///
+    /// Il percorso passa da `safe_join`: l'id non può uscire dal vault e la
+    /// cartella non può essere un symlink. Se i file sono già spariti, la voce
+    /// nel manifesto viene comunque rimossa, così un quaderno orfano non resta
+    /// per sempre nella lista.
+    pub fn delete_notebook(&self, notebook_id: &str) -> Result<()> {
+        let mut manifest = self.read_manifest()?;
+        let position = manifest
+            .notebooks
+            .iter()
+            .position(|id| id == notebook_id)
+            .ok_or_else(|| Error::NotFound(format!("il quaderno {notebook_id} non esiste")))?;
+        let dir = safe_join(&self.root, &Path::new(NOTEBOOKS_DIR).join(notebook_id))?;
+        match std::fs::symlink_metadata(&dir) {
+            Ok(meta) => {
+                if !meta.is_dir() || meta.file_type().is_symlink() {
+                    return Err(Error::Rejected("il quaderno non è una cartella".into()));
+                }
+                std::fs::remove_dir_all(&dir)?;
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err.into()),
+        }
+        manifest.notebooks.remove(position);
+        self.write_manifest(&manifest)?;
+        Ok(())
+    }
+
     // --- percorsi -------------------------------------------------------
 
     fn manifest_path(&self) -> Result<PathBuf> {
@@ -367,5 +396,39 @@ mod tests {
         let reopened = Vault::open(dir.path().join("vault"));
         assert!(reopened.is_err());
         assert_eq!(std::fs::read(&manifest).unwrap(), b"{ not json");
+    }
+
+    #[test]
+    fn elimina_quaderno_e_le_sue_pagine() {
+        let (_dir, vault) = vault();
+        let keep = vault.create_notebook("Da tenere").unwrap();
+        let gone = vault.create_notebook("Da eliminare").unwrap();
+        vault.create_page(&gone.id, Paper::Ruled).unwrap();
+        let gone_dir = vault.root().join("notebooks").join(&gone.id);
+        assert!(gone_dir.is_dir());
+
+        vault.delete_notebook(&gone.id).unwrap();
+
+        assert!(!gone_dir.exists());
+        let ids: Vec<_> = vault
+            .list_notebooks()
+            .unwrap()
+            .into_iter()
+            .map(|notebook| notebook.id)
+            .collect();
+        assert_eq!(ids, vec![keep.id.clone()]);
+        assert!(vault.load_notebook(&gone.id).is_err());
+        assert!(vault.delete_notebook(&gone.id).is_err());
+    }
+
+    #[test]
+    fn elimina_quaderno_orfano_pulisce_il_manifesto() {
+        let (_dir, vault) = vault();
+        let orphan = vault.create_notebook("Orfano").unwrap();
+        std::fs::remove_dir_all(vault.root().join("notebooks").join(&orphan.id)).unwrap();
+
+        vault.delete_notebook(&orphan.id).unwrap();
+
+        assert!(vault.list_notebooks().unwrap().is_empty());
     }
 }

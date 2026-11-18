@@ -87,7 +87,7 @@ const MOCK_SOURCE = `
     invoke: async (cmd, args = {}) => {
       switch (cmd) {
         case "vault_open":
-          return { path: "/mock/vault", notebooks: [{ id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.length, updated_at: 1 }] };
+          return { path: "/mock/vault", notebooks: state.deleted ? [] : [{ id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.length, updated_at: 1 }] };
         case "notebook_load":
           return { schema: 1, id: state.notebook.id, title: state.notebook.title, pages: state.notebook.pages.slice(), updated_at: 1, ui: state.notebook.ui };
         case "notebook_set_ui":
@@ -119,6 +119,12 @@ const MOCK_SOURCE = `
         case "page_delete":
           state.notebook.pages = state.notebook.pages.filter((id) => id !== args.pageId);
           delete state.pages[args.pageId];
+          persist();
+          return null;
+        case "notebook_delete":
+          for (const id of state.notebook.pages) delete state.pages[id];
+          state.notebook.pages = [];
+          state.deleted = true;
           persist();
           return null;
         case "git_status":
@@ -524,6 +530,23 @@ async function main() {
         "document.querySelector('.swatch[data-color=\"#1d4ed8\"]').hasAttribute('data-active')",
       ),
       true,
+    );
+
+    // --- eliminazione del quaderno --------------------------------------
+    await click(".notebook-delete");
+    await waitFor(
+      async () => (await session.eval("document.querySelectorAll('.notebook-item').length")) === 0,
+      { label: "quaderno eliminato dalla sidebar" },
+    );
+    check(
+      "eliminazione quaderno rimuove la voce",
+      await session.eval("document.querySelectorAll('.notebook-item').length"),
+      0,
+    );
+    check(
+      "dopo l'eliminazione compare lo stato vuoto",
+      await session.eval("document.getElementById('empty-state').hidden"),
+      false,
     );
   } finally {
     session?.close();
